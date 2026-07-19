@@ -13,6 +13,7 @@ import { runClaude } from "./claude.js";
 import { evaluateOutputChecks } from "./assert.js";
 import { runPool } from "./pool.js";
 import { isUnwritten, hasOutputChecks } from "./testcase.js";
+import { resolveCwd } from "./cwd.js";
 import {
   BENCH_TRIALS,
   DEFAULT_CONCURRENCY,
@@ -96,10 +97,11 @@ export async function benchSuites(suites, config = {}) {
         caseResult.status = "skipped";
         continue;
       }
+      const cwd = resolveCwd(suite, testCase);
       for (let trial = 0; trial < trials; trial += 1) {
         // Interleave the arms so drift hits both equally.
-        jobs.push(armJob(testCase, model, config, caseResult, false));
-        jobs.push(armJob(testCase, model, config, caseResult, true));
+        jobs.push(armJob(testCase, model, config, caseResult, false, cwd));
+        jobs.push(armJob(testCase, model, config, caseResult, true, cwd));
       }
     }
   }
@@ -120,14 +122,16 @@ export async function benchSuites(suites, config = {}) {
  * @param {BenchConfig} config
  * @param {BenchCaseResult} caseResult
  * @param {boolean} withoutSkill
+ * @param {string | undefined} cwd
  * @returns {() => Promise<void>}
  */
-function armJob(testCase, model, config, caseResult, withoutSkill) {
+function armJob(testCase, model, config, caseResult, withoutSkill, cwd) {
   return async () => {
     const outcome = await runClaude(testCase.prompt, {
       model,
       maxTurns: HAPPY_MAX_TURNS, // no early exit — bench needs the full output
       timeoutMs: config.timeoutMs ?? RUN_TIMEOUT_MS,
+      cwd,
       disallowSkills: withoutSkill,
     });
     const checks = await evaluateOutputChecks(testCase, outcome, model);

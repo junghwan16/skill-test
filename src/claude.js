@@ -100,6 +100,9 @@ export async function runClaude(prompt, options = {}) {
     toolsUsed: [...tools],
     costUsd,
     numTurns,
+    // SIGKILL on an early stop pre-empts the terminating `result` event, so
+    // `costUsd` stays 0 — the caller renders the run total as a lower bound.
+    stoppedEarly,
     // an early stop or timeout is expected control flow, not a real failure
     isError: isError && !(stoppedEarly || timedOut),
   };

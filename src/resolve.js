@@ -157,6 +157,7 @@ function readMeta(skillMdPath, source) {
   const raw = fs.readFileSync(skillMdPath, "utf8");
   let name = path.basename(path.dirname(skillMdPath));
   let description = "";
+  let body = raw;
 
   const block = splitFrontmatter(raw);
   if (block) {
@@ -164,10 +165,32 @@ function readMeta(skillMdPath, source) {
     const { data } = parseFrontmatter(block.yaml);
     name = /** @type {string} */ (data?.name ?? name);
     description = /** @type {string} */ (data?.description ?? "");
+    body = block.body;
   }
 
-  const triggers = description
-    .match(/(?:triggers?)\s*[:—-]\s*(.+)/i)?.[1]
-    ?.trim();
-  return { path: skillMdPath, source, name, description, triggers };
+  return {
+    path: skillMdPath,
+    source,
+    name,
+    description,
+    triggers: extractTriggers(description, body),
+  };
+}
+
+/**
+ * A skill's trigger-keyword line, verbatim, if it declares one. Real skills put
+ * it in the description or the body, behind a localized marker — so scan both,
+ * strip markdown emphasis, and accept "Triggers", the Korean "트리거", and the
+ * Japanese "トリガー". Returns the first list found (a hint, not a contract).
+ *
+ * @param {string} description
+ * @param {string} body
+ * @returns {string | undefined}
+ */
+function extractTriggers(description, body) {
+  const text = `${description}\n${body}`.replace(/[*_#>]/g, "");
+  const match = text.match(
+    /(?:triggers?|트리거(?:\s*키워드)?|トリガー)\s*[:：—–-]\s*(.+)/i,
+  );
+  return match?.[1]?.trim() || undefined;
 }

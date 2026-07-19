@@ -22,13 +22,17 @@ import { discover } from "./discover.js";
  *
  * @param {string} [target]      A skill name or an eval file path.
  * @param {string} [caseFilter]  Keep only cases whose id contains this.
- * @returns {{ suites: import('./types.js').Suite[], skipped: SkippedFile[] }}
+ * @returns {{ suites: import('./types.js').Suite[], skipped: SkippedFile[], filteredOut: string[] }}
+ *   `filteredOut` = files that parsed fine but whose every case was excluded by
+ *   `caseFilter`; lets the caller tell "no suites" from "filter matched nothing".
  */
 export function collectSuites(target, caseFilter) {
   /** @type {import('./types.js').Suite[]} */
   const suites = [];
   /** @type {SkippedFile[]} */
   const skipped = [];
+  /** @type {string[]} */
+  const filteredOut = [];
 
   for (const file of filesForTarget(target)) {
     try {
@@ -38,11 +42,12 @@ export function collectSuites(target, caseFilter) {
         : suite.cases;
       if (cases.length > 0)
         suites.push(cases === suite.cases ? suite : { ...suite, cases });
+      else if (caseFilter) filteredOut.push(file);
     } catch (error) {
       skipped.push({ file, error: /** @type {Error} */ (error) });
     }
   }
-  return { suites, skipped };
+  return { suites, skipped, filteredOut };
 }
 
 /**

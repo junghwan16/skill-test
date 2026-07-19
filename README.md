@@ -90,25 +90,31 @@ npx skillevel bench commit-style
 
 ## Commands
 
-| command                     | what it does                                                           |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `skillevel [target]`        | run eval suites — all discovered, or one skill / file                  |
-| `skillevel bench [target]`  | A/B each case with vs without the skill; report the lift               |
-| `skillevel new <skill>`     | scaffold what's missing: `<skill>/SKILL.md` and/or `<skill>.eval.yaml` |
-| `skillevel lint [targets…]` | validate `SKILL.md` files (packaging errors + guidance warnings)       |
-| `skillevel fmt [targets…]`  | normalize `SKILL.md` frontmatter/whitespace (`--check` to only report) |
+| command                       | what it does                                                           |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `skillevel [target]`          | run eval suites — all discovered, or one skill / file                  |
+| `skillevel bench [target]`    | A/B each case with vs without the skill; report the lift               |
+| `skillevel validate [target]` | offline: parse suites, report schema errors, preview run cost          |
+| `skillevel new <skill>`       | scaffold what's missing: `<skill>/SKILL.md` and/or `<skill>.eval.yaml` |
+| `skillevel lint [targets…]`   | validate `SKILL.md` files (packaging errors + guidance warnings)       |
+| `skillevel fmt [targets…]`    | normalize `SKILL.md` frontmatter/whitespace (`--check` to only report) |
 
 Useful flags on runs: `-t <substr>` filters cases by id, `-m <model>`
-overrides the model, `-c <n>` sets parallelism, `--json <file>` writes full
+overrides the model, `--trials <n>` overrides the suite's trial count (to bound
+cost mid-iteration), `-c <n>` sets parallelism, `--json <file>` writes full
 machine-readable results, `--ci` makes failures and unwritten cases exit
 non-zero, and `bench --min-lift <pp>` fails when the lift drops too low.
+
+Before spending on a real run, `skillevel validate [target]` parses the suites
+offline, flags schema errors, and previews the run count (`≈ N claude runs`).
 
 Suites are discovered automatically: any `*.eval.yaml` (or `evals/cases.yaml`)
 under the current directory.
 
-See [`examples/`](./examples/) for worked suites — including two that were
-produced by dogfooding skillevel against real installed skills (`code-review`
-and a `writing-skills` ↔ `skill-eval` routing collision).
+See [`examples/`](./examples/) for two self-contained skill packages —
+`review-pr` and `commit-style`, each shipping its `SKILL.md` next to its eval
+suite — that pin each other's routing boundary and were built by dogfooding
+skillevel's own toolchain.
 
 ## Writing cases
 
@@ -149,6 +155,15 @@ Tips that make suites worth having:
   ≥ 0.8 (`--threshold` to change) — one bad trial out of five still passes.
 - **TODO is loud.** A prompt still containing a `<placeholder>` reports as
   TODO and fails `--ci`, so scaffolded suites can't silently pass.
+- **Repo-context skills need a repo.** A skill that acts on a diff, a failing
+  test, or a dirty tree only fires where there's something to act on — in an
+  empty directory it reports `fired: none`. Point runs at a fixture with a
+  `cwd:` on the suite (or a single case), resolved relative to the eval file:
+
+  ```yaml
+  skill: review-pr
+  cwd: ../.. # run every case in a real git repo with a diff
+  ```
 
 ## Does the skill actually help? (`bench`)
 

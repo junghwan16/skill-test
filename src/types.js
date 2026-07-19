@@ -33,6 +33,7 @@
  * @property {boolean} should_trigger        Whether the target skill should fire.
  * @property {string} [expect_skill]         The skill that should win, or "none".
  * @property {number} [trials]               Per-case override of the suite's trials.
+ * @property {string} [cwd]                  Working dir for this case's runs (see Suite.cwd).
  * @property {Expectation[]} [expect]        Extra assertions beyond the trigger check.
  */
 
@@ -45,6 +46,9 @@
  * @property {number} [trials]               Default trials per case.
  * @property {string} [model]                Model passed to `claude --model`.
  * @property {number} [triggerThreshold]     Green pass-rate threshold (0..1).
+ * @property {string} [cwd]                  Working dir for runs, relative to the eval file.
+ *                                           Repo-context skills only trigger where there's
+ *                                           something to act on (a diff, a failing test).
  * @property {string} [file]                 Source path; filled in by the loader.
  */
 
@@ -55,8 +59,9 @@
  * @property {string} text                   Final assistant text.
  * @property {string[]} skillsFired          Distinct skills invoked, in order seen.
  * @property {string[]} toolsUsed            Distinct tool names invoked.
- * @property {number} costUsd                Reported cost of the run.
+ * @property {number} costUsd                Reported cost of the run (0 when stopped early).
  * @property {number} numTurns
+ * @property {boolean} stoppedEarly          True when killed on the trigger verdict, before the cost event.
  * @property {boolean} isError               True only for genuine failures (not early stops).
  */
 

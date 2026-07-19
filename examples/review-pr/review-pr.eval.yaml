@@ -1,0 +1,68 @@
+# review-pr.eval.yaml — eval suite shipped alongside the skill it tests.
+#
+# Production layout: the skill and its eval live together
+#   examples/review-pr/
+#     SKILL.md
+#     review-pr.eval.yaml   ← you are here
+#
+# `cwd: ../..` points every run at the skillevel repo root — a real git repo
+# with a diff — because review-pr only fires when there's something to review.
+# (Demonstrates the per-suite `cwd` knob; resolved relative to this file.)
+#
+# The routing case collides with the sibling example skill examples/commit-style
+# — "write a commit message" must route there, and review-pr must stay out.
+
+skill: review-pr
+trials: 3
+model: sonnet
+cwd: ../.. # run in a repo that has changes to review
+
+cases:
+  # -- happy (should fire) -------------------------------------------------
+  - id: happy-review-branch
+    prompt: "Review my branch against main before I open the PR."
+    should_trigger: true
+    expect:
+      - triggered
+      - match: "correctness|style|tests" # the three report axes
+      # Also what `skillevel bench review-pr` A/Bs (skill-on vs skill-off):
+      - judge: >
+          Does the response review the diff since a fixed reference point and
+          group its findings under Correctness / Style / Tests with a
+          merge-readiness verdict, rather than a single free-form critique?
+
+  - id: happy-review-pr
+    prompt: "Can you review this pull request?"
+    should_trigger: true
+    expect:
+      - triggered
+
+  - id: happy-review-since
+    prompt: "Review the work-in-progress changes since the last commit."
+    should_trigger: true
+    expect:
+      - triggered
+
+  # -- negative (must NOT fire — near-miss) --------------------------------
+  - id: neg-explain-merge-base
+    prompt: "Explain what a git merge-base is and how a three-dot diff uses it."
+    should_trigger: false
+    expect:
+      - not_triggered
+
+  - id: neg-implement
+    prompt: "Add input validation to the login handler so empty passwords are rejected."
+    should_trigger: false
+    expect:
+      - not_triggered
+
+  - id: neg-explain-diff
+    prompt: "Walk me through what this diff changes so I understand it."
+    should_trigger: false
+    expect:
+      - not_triggered
+
+  # -- routing: the sibling example skill must win; review-pr must stay out --
+  - id: route-commit-style
+    prompt: "Write a commit message for my staged changes."
+    expect_skill: commit-style

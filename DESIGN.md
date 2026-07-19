@@ -245,83 +245,101 @@ quality fails the build.
 
 ---
 
-# v-next — dogfooding findings (2026-07-20)
+# v-next — dogfooding findings (2026-07-20) — SHIPPED
 
-Source: we built the two real suites in `examples/` (`code-review`,
-`writing-skills` ↔ `skill-eval`) by driving skillevel end-to-end as a
-first-time user — `new` → real cases → `lint` → paid `claude -p` runs. The
-loop works and the report format lands (the `fired: none` / `fired: <skill>`
-diagnostic is exactly right). These are the papercuts that cost a newcomer the
-most, ranked by how badly they make a _correct_ suite look wrong.
+Two dogfood passes drove this. **Pass 1** built real suites by driving the tool
+as a first-time user (`new` → cases → `lint` → paid runs) and surfaced seven
+papercuts — each one making a _correct_ suite look wrong. **Pass 2** re-ran the
+loop against the fixed tool and the self-contained example skills, confirming
+the fixes end-to-end and catching one deeper bug the first pass had masked.
 
-## Papercuts (small surface, high leverage)
+## Shipped fixes (pass 1)
 
-1. **Run-level `--trials` override.** A `bench` takes `--trials`; a plain run
-   does not — `skillevel code-review --trials 2` errors `unknown option`. So
-   the only lever to bound a run's cost is editing the YAML `trials:` field,
-   which is heavy mid-iteration. Add `--trials <n>` to the run command
-   (overrides the suite value); it mirrors `bench` and removes the single most
-   common first-run error. Until then, the error should name the YAML key
-   instead of a bare "unknown option".
+1. **Run-level `--trials`.** A plain run rejected `--trials` (only `bench` had
+   it), so bounding a run's cost meant editing YAML. `--trials <n>` now
+   overrides the suite/case value on runs (`cli.js`, `run.js` `RunConfig.trials`,
+   precedence `CLI > case > suite > default`).
 
-2. **Triggering is cwd/repo-state sensitive — say so.** The same happy prompt
-   fired `none` in an empty scratch dir and triggered 1/1 inside a git repo
-   with a real diff (`code-review`, and any repo-context skill: `tdd`,
-   `changelog`, `diagnosing-bugs`). A newcomer testing in a throwaway dir
-   concludes their skill is broken. `runClaude` already plumbs `options.cwd` —
-   so the cheap win is a per-suite/per-case **`cwd:`** (or fixture-repo)
-   knob plus a line in "Good to know" that repo context affects triggering,
-   not just _which_ skill is under test.
+2. **Per-suite/case `cwd`.** Repo-context skills only fire where there's
+   something to act on; the same prompt fired `none` in an empty dir and `1/1`
+   in a real repo. A suite (or case) now takes `cwd:`, resolved relative to the
+   eval file, plumbed to `runClaude` (`cwd.js`, `run.js`, `bench.js`). Pass 2
+   proved it: `review-pr`'s happy cases fired in-repo via `cwd: ../..` instead
+   of `fired: none`.
 
-3. **Cost undercounts on early-exit.** A trigger-only case that passes fast is
-   `SIGKILL`ed the instant the skill fires (`claude.js`), before the terminating
-   `result` event that carries `total_cost_usd` — so those cases report `$0`
-   and the summary total is a lower bound, not the real spend. Options: print
-   it as `≥ $X`, estimate from `num_turns`, or let the fast path drain the
-   final event. At minimum, stop claiming the summary "prints what each run
-   actually cost" when the fast path structurally can't.
+3. **Early-exit cost is a lower bound.** A fast-passing trigger case is
+   `SIGKILL`ed before the `result` event that carries `total_cost_usd`, so it
+   reports `$0`. The outcome now flags `stoppedEarly`, and the summary renders
+   `≥ $X` when any trial exited early (`claude.js`, `report.js`) — and stays
+   exact when every case runs to completion.
 
-4. **`lint` false-positives on command templates.** The angle-bracket
-   placeholder check runs on prose with _fenced_ blocks stripped, but not
-   _inline_ code — so a legit `git diff <fixed-point>...HEAD` in prose or a
-   backticked span trips `warning placeholder`. Strip inline code spans too,
-   matching the fence-protection `fmt` already promises.
+4. **`lint` spares command templates.** The angle-bracket placeholder check now
+   strips inline `` `code` `` spans first, so `` `git diff <fixed-point>...HEAD` ``
+   no longer trips `warning placeholder` (`lint.js`).
 
-## Newcomer-legibility
+5. **Legible zero-match filter.** A discovered-but-filtered-empty suite now
+   reports `N suite(s) discovered, but no case id matches filter "X"` instead of
+   the misleading "no eval suites found" (`load.js` `filteredOut`, `cli.js`).
 
-5. **Zero-match `-t` filter reports "no eval suites found."** When a suite
-   loads fine but the case filter excludes everything, the runner prints the
-   same "no files discovered" message and exits 0 — indistinguishable from a
-   missing file. Say "1 suite discovered · 0 cases match filter `X`" so the
-   author knows the file _was_ found.
+6. **Offline `validate`.** `skillevel validate [target]` parses suites with no
+   `claude` calls, reports schema errors, and previews the run count
+   (`≈ N claude runs` for eval, `≈ M` for bench) — the pre-flight before paying
+   (`cli.js`).
 
-6. **No offline way to validate a suite.** `lint` only targets `SKILL.md`;
-   there is no cheap check that an eval YAML is well-formed (bad regex, unknown
-   `expect` key, malformed `expect_skill`) — every real invocation costs
-   tokens and minutes. Add `skillevel validate [target]` (or a run `--dry-run`)
-   that parses suites offline and prints a **cost preview** — "N cases × M
-   trials ≈ X runs" — before any paid call. This is the offline pre-flight the
-   `lint`/`fmt` half of the tool already models, extended to cases files.
+7. **Broader trigger-keyword extraction.** `resolve.js` now scans description
+   **+ body**, strips markdown, and recognises localized markers (English
+   `Triggers`, Korean `트리거`, Japanese `トリガー`) — so `new tidy-first` now
+   quotes its real Korean trigger list instead of the "no explicit list"
+   fallback.
 
-## Scaffolding (`new`) — trigger-hint extraction
+## The bug pass 1 masked (fixed in pass 2)
 
-7. **Keyword extraction misses most real skills.** `resolve.js` scans only the
-   `description` field for the literal English word "trigger(s)". It therefore
-   misses (a) i18n markers (`트리거 —` in the Korean `tidy-first`/`db-query`
-   skills), (b) trigger lists that live in the SKILL.md **body** rather than the
-   description, and (c) skills whose triggers are implicit in description prose.
-   The honest fallback ("no explicit trigger list — read its description") is
-   correct when there's truly nothing, but fires far too often. Broaden to scan
-   description **+ body**, recognise localized markers, and — failing an
-   explicit list — surface the salient noun phrases from the description.
+8. **Every subcommand silently dropped its options.** The root command was a
+   default _action_ command (`program.argument(...).action(runCommand)`), which
+   makes commander discard sibling subcommands' parsed options — so
+   `bench --trials 1 -t X` ran at the defaults (`trials=3`, no filter). Pass 1
+   missed it because only one case was benchable, so the ignored `-t` _looked_
+   like it worked; adding a root `--trials` in pass 1 then broke `bench`'s
+   `--trials` outright. Fix: `run` is now an explicit `{ isDefault: true }`
+   subcommand, so `skillevel [target]` and bare `skillevel` still work while
+   subcommand options parse correctly. Verified end-to-end:
+   `bench commit-style -t happy-bugfix --trials 1` runs one trial per arm
+   (and showed a real **+100pp** lift). This also un-broke `-t/-c/-m/--json` on
+   every other subcommand.
 
-## Already closed by this pass
+## Examples are now self-contained skill packages
 
-- **`expect_skill` semantics were invisible.** That a green routing case
-  requires the sibling to _actually fire_ (not just the target to stay out) was
-  only discoverable by reading `assert.js`. Now stated in the README and in
-  `examples/writing-skills.eval.yaml`.
-- **`examples/` was orphaned** — unreferenced by docs, and its only "skill"
-  case (`commit-style`) targeted a skill that exists nowhere, so a bare
-  `skillevel` at the repo root misfired every case. Now: two real executed
-  suites, an `examples/README.md`, and a link from the main README.
+`examples/` shifted from eval files pointing at external installed skills to
+full **production-layout packages** — each skill's `SKILL.md` sits next to its
+eval suite:
+
+```
+examples/review-pr/{SKILL.md, review-pr.eval.yaml}   # cwd: ../.. showcase
+examples/commit-style/{SKILL.md, commit-style.eval.yaml}
+examples/smoke.eval.yaml                              # runner self-check
+```
+
+The two skills pin **each other's** routing (`review-pr`'s suite routes "write a
+commit message" to `commit-style`, and vice-versa) — a fully self-contained
+`expect_skill` collision needing no external skills. The authoring toolchain
+(`lint`/`fmt`/`validate`) runs on the in-repo copies directly (local skills win
+over installed).
+
+Also closed: the invisible `expect_skill` "sibling must actually fire" semantic
+(now in the README) and the orphaned `examples/` dir.
+
+## Still open (honest)
+
+- **Overlapping installed siblings out-compete the example.** Pass 2 ran on a
+  machine that also has a real `code-review` skill whose description nearly
+  matches `review-pr`'s ("review a branch, a PR, since X"); it won some routing.
+  That is not a CLI defect — it's exactly the over-triggering collision skillevel
+  exists to _detect_ — but it means `review-pr`'s suite only goes fully green in
+  an environment without a rival diff-reviewer. The real fix belongs to the
+  skills (sharper boundaries), which is a lesson worth leaving in the example.
+- **Isolated ablation / `--skill-dir` (v2.1)** — still the biggest gap: eval an
+  uncommitted or in-repo `SKILL.md` reproducibly, and ablate a _single_ skill
+  rather than blocking all skills. Would also let the example suites run without
+  a manual symlink into `~/.claude/skills`.
+- **Cost precision** — `≥ $X` is honest but coarse; estimating early-exit spend
+  from `num_turns` would tighten it.

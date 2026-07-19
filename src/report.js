@@ -12,6 +12,7 @@ import pc from "picocolors";
  * @property {number} fail
  * @property {number} todo
  * @property {number} costUsd
+ * @property {boolean} costPartial          Some trials stopped early, so the total is a lower bound.
  */
 
 /**
@@ -29,6 +30,9 @@ export function summarize(suites) {
     fail: count("fail"),
     todo: count("todo"),
     costUsd: cases.reduce((total, c) => total + c.costUsd, 0),
+    costPartial: cases.some((c) =>
+      c.trials.some((trial) => trial.outcome.stoppedEarly),
+    ),
   };
 }
 
@@ -44,7 +48,10 @@ export function renderSummary(summary) {
     pc.green(`${summary.pass} passed`),
     summary.todo ? pc.yellow(`${summary.todo} todo`) : pc.dim("0 todo"),
   ];
-  return `\n${parts.join(pc.dim(" · "))}${pc.dim(`   $${summary.costUsd.toFixed(3)}`)}`;
+  // Early-exit trials are SIGKILLed before the cost event, so their spend is
+  // unaccounted — mark the total as a floor rather than overclaiming precision.
+  const cost = `${summary.costPartial ? "≥ " : ""}$${summary.costUsd.toFixed(3)}`;
+  return `\n${parts.join(pc.dim(" · "))}${pc.dim(`   ${cost}`)}`;
 }
 
 /**

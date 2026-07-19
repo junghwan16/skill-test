@@ -232,7 +232,10 @@ function checkGuidance(ctx) {
     }
   }
 
-  const angle = (ctx.prose.match(PLACEHOLDER_RE) ?? []).filter((tag) =>
+  // Strip inline `code` spans first: `git diff <fixed-point>...HEAD` is a
+  // command template, not a leftover placeholder (fmt already spares fences).
+  const proseNoCode = ctx.prose.replace(/`[^`\n]*`/g, "");
+  const angle = (proseNoCode.match(PLACEHOLDER_RE) ?? []).filter((tag) =>
     /[ -]/.test(tag.slice(1, -1)),
   );
   if (angle.length > 0) {

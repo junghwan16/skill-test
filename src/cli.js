@@ -23,10 +23,12 @@ import { newSkill } from "./scaffold.js";
 import { lintSkillMd } from "./lint.js";
 import { formatSkillMd } from "./fmt.js";
 import { findSkill, resolveSkillMds } from "./resolve.js";
+import { isUnwritten, hasOutputChecks } from "./testcase.js";
 import {
   BENCH_TRIALS,
   DEFAULT_CONCURRENCY,
   DEFAULT_THRESHOLD,
+  DEFAULT_TRIALS,
 } from "./constants.js";
 
 const { version } = createRequire(import.meta.url)("../package.json");
@@ -43,10 +45,13 @@ function main() {
     )
     .version(version);
 
+  // `run` is a real (default) subcommand, not an action on the program itself:
+  // a default *action command* makes commander drop every *other* subcommand's
+  // parsed options (so `bench --trials`/`-t` silently fell back to defaults).
   program
-    .argument(
-      "[target]",
-      "a skill name or an eval file; omit to run everything discovered",
+    .command("run [target]", { isDefault: true })
+    .description(
+      "run eval suites — all discovered, or one skill / file (default)",
     )
     .option("-t, --filter <substr>", "only run cases whose id contains this")
     .option(
@@ -55,6 +60,7 @@ function main() {
       String(DEFAULT_CONCURRENCY),
     )
     .option("-m, --model <model>", "override the model for all runs")
+    .option("--trials <n>", "override trials per case (else the YAML value)")
     .option(
       "--threshold <n>",
       "green pass-rate threshold (0..1)",
@@ -83,6 +89,14 @@ function main() {
       "exit non-zero when overall lift is below this many percentage points",
     )
     .action(benchCommand);
+
+  program
+    .command("validate [target]")
+    .description(
+      "Offline check: parse eval suites, report schema errors, and preview run cost — no `claude` calls",
+    )
+    .option("-t, --filter <substr>", "only count cases whose id contains this")
+    .action(validateCommand);
 
   program
     .command("new <skill> [dir]")
@@ -121,6 +135,7 @@ async function runCommand(target, options) {
       concurrency: Number(options.concurrency),
       threshold: Number(options.threshold),
       model: /** @type {string | undefined} */ (options.model),
+      trials: options.trials === undefined ? undefined : Number(options.trials),
       onProgress,
     }),
   );
@@ -164,6 +179,74 @@ async function benchCommand(target, options) {
 }
 
 /**
+ * The `validate` command: parse suites offline, surface schema errors, and
+ * preview how many `claude` runs an eval / bench would cost — the cheap
+ * pre-flight before spending on a real run.
+ *
+ * @param {string | undefined} target
+ * @param {{ filter?: string }} options
+ * @returns {void}
+ */
+function validateCommand(target, options) {
+  const { suites, skipped, filteredOut } = collectSuites(
+    typeof target === "string" ? target : undefined,
+    options.filter,
+  );
+  for (const { file, error } of skipped) {
+    console.error(`${pc.red("✗")} ${file}\n  ${pc.red(error.message)}`);
+  }
+  let evalRuns = 0;
+  let benchRuns = 0;
+  for (const suite of suites) {
+    const counts = { happy: 0, negative: 0, routing: 0, todo: 0 };
+    for (const testCase of suite.cases) {
+      if (isUnwritten(testCase)) {
+        counts.todo += 1;
+        continue;
+      }
+      const trials = testCase.trials ?? suite.trials ?? DEFAULT_TRIALS;
+      evalRuns += trials;
+      if (testCase.expect_skill !== undefined) counts.routing += 1;
+      else if (testCase.should_trigger) counts.happy += 1;
+      else counts.negative += 1;
+      // Benchable = happy case carrying an output check; both arms run.
+      if (testCase.should_trigger && hasOutputChecks(testCase))
+        benchRuns += trials * 2;
+    }
+    const parts = [
+      `${counts.happy} happy`,
+      `${counts.negative} negative`,
+      counts.routing ? `${counts.routing} routing` : null,
+      counts.todo ? pc.yellow(`${counts.todo} todo`) : null,
+    ].filter(Boolean);
+    console.log(
+      `${pc.green("✓")} ${pc.bold(suite.skill)} ${pc.dim(suite.file)}\n  ${parts.join(pc.dim(" · "))}`,
+    );
+  }
+  if (filteredOut.length > 0) {
+    console.error(
+      pc.yellow(
+        `\n${filteredOut.length} suite(s) had no case matching filter "${options.filter}"`,
+      ),
+    );
+  }
+  if (suites.length > 0) {
+    console.log(
+      pc.dim(
+        `\n≈ ${evalRuns} claude run(s) for a full eval` +
+          (benchRuns
+            ? `, ≈ ${benchRuns} for \`bench\` (both arms + graders)`
+            : "") +
+          " — trigger-only cases exit early, so real spend is lower.",
+      ),
+    );
+  } else if (skipped.length === 0 && filteredOut.length === 0) {
+    console.error(pc.yellow("no eval suites found"));
+  }
+  process.exit(skipped.length > 0 ? 1 : 0);
+}
+
+/**
  * Resolve `target` to suites, reporting skipped files. Exits when nothing is
  * found — non-zero only when the caller treats emptiness as failure (`--ci`).
  *
@@ -173,7 +256,7 @@ async function benchCommand(target, options) {
  * @returns {import('./types.js').Suite[]}
  */
 function loadSuitesOrExit(target, filter, failWhenEmpty) {
-  const { suites, skipped } = collectSuites(
+  const { suites, skipped, filteredOut } = collectSuites(
     typeof target === "string" ? target : undefined,
     /** @type {string | undefined} */ (filter),
   );
@@ -181,9 +264,13 @@ function loadSuitesOrExit(target, filter, failWhenEmpty) {
     console.error(pc.red(`skip ${file}: ${error.message}`));
   }
   if (suites.length === 0) {
+    // A discovered-but-filtered-empty suite is a different problem from no file
+    // at all — say which, so a mistyped `-t` isn't read as "nothing here".
     console.error(
       pc.yellow(
-        "no eval suites found (looked for *.eval.yaml / evals/cases.yaml)",
+        filteredOut.length > 0
+          ? `${filteredOut.length} suite(s) discovered, but no case id matches filter "${filter}"`
+          : "no eval suites found (looked for *.eval.yaml / evals/cases.yaml)",
       ),
     );
     process.exit(failWhenEmpty ? 1 : 0);

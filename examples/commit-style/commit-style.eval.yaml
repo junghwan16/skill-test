@@ -1,0 +1,66 @@
+# commit-style.eval.yaml — eval suite shipped alongside the skill it tests.
+#
+# Production layout:
+#   examples/commit-style/
+#     SKILL.md
+#     commit-style.eval.yaml   ← you are here
+#
+# The routing case is the mirror of review-pr's: "review my branch" must route
+# to examples/review-pr, and commit-style must stay out — the two example
+# skills pin each other's boundary.
+
+skill: commit-style
+trials: 3
+model: sonnet
+
+cases:
+  # -- happy (should fire) -------------------------------------------------
+  - id: happy-staged
+    prompt: "Write a commit message for the staged changes."
+    should_trigger: true
+    expect:
+      - triggered
+      - match: "(feat|fix|refactor|chore|docs|test|perf|build|ci)(\\(.+\\))?:"
+
+  - id: happy-bugfix
+    prompt: "I fixed the null check in the payment retry path — commit message please."
+    should_trigger: true
+    expect:
+      - triggered
+      - match: "fix(\\(.+\\))?:"
+      # Benchable: does the skill actually produce a conventional subject line?
+      - judge: >
+          Is the first line a Conventional Commits subject (type(scope):
+          summary), in imperative mood, with no trailing period and at most
+          72 characters?
+
+  - id: happy-feature
+    prompt: "commit this: added a TOTP enrollment endpoint to the auth service"
+    should_trigger: true
+    expect:
+      - triggered
+      - match: "feat(\\(.+\\))?:"
+
+  # -- negative (must NOT fire — near-miss) --------------------------------
+  - id: neg-explain-format
+    prompt: "What's the difference between feat and fix in conventional commits?"
+    should_trigger: false
+    expect:
+      - not_triggered
+
+  - id: neg-undo-commit
+    prompt: "How do I undo my last commit but keep the changes staged?"
+    should_trigger: false
+    expect:
+      - not_triggered
+
+  - id: neg-pr-description
+    prompt: "Draft a description for this pull request summarizing the changes."
+    should_trigger: false
+    expect:
+      - not_triggered
+
+  # -- routing: the sibling example skill must win; commit-style must stay out --
+  - id: route-review-pr
+    prompt: "Review my branch against main before I open the PR."
+    expect_skill: review-pr

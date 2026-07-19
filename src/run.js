@@ -7,6 +7,7 @@ import { runClaude } from "./claude.js";
 import { evaluateTrial } from "./assert.js";
 import { runPool } from "./pool.js";
 import { isUnwritten, hasOutputChecks } from "./testcase.js";
+import { resolveCwd } from "./cwd.js";
 import {
   DEFAULT_CONCURRENCY,
   DEFAULT_THRESHOLD,
@@ -23,6 +24,7 @@ import {
  * @property {number} [concurrency]
  * @property {number} [threshold]                Global green threshold (0..1).
  * @property {string} [model]                    Overrides each suite's model.
+ * @property {number} [trials]                   Overrides each suite's/case's trials.
  * @property {number} [timeoutMs]
  * @property {(done: number, total: number) => void} [onProgress]
  */
@@ -75,17 +77,21 @@ export async function runSuites(suites, config = {}) {
  * @returns {Array<() => Promise<void>>}
  */
 function caseJobs(testCase, suite, model, config, caseResult) {
-  const trials = testCase.trials ?? suite.trials ?? DEFAULT_TRIALS;
+  // A CLI `--trials` overrides everything; otherwise per-case beats per-suite.
+  const trials =
+    config.trials ?? testCase.trials ?? suite.trials ?? DEFAULT_TRIALS;
   const stopOnSkill = makeStopPredicate(testCase, suite.skill);
   const maxTurns = testCase.should_trigger
     ? HAPPY_MAX_TURNS
     : NEGATIVE_MAX_TURNS;
+  const cwd = resolveCwd(suite, testCase);
 
   return Array.from({ length: trials }, () => async () => {
     const outcome = await runClaude(testCase.prompt, {
       model,
       maxTurns,
       timeoutMs: config.timeoutMs ?? RUN_TIMEOUT_MS,
+      cwd,
       stopOnSkill,
     });
     const checks = await evaluateTrial(testCase, suite.skill, outcome, model);
