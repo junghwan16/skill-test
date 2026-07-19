@@ -32,12 +32,21 @@ import {
  */
 
 const ALLOWED_KEYS = new Set([
+  // claude.ai / API packaging keys (skill-creator's quick_validate.py)
   "name",
   "description",
   "license",
   "allowed-tools",
   "metadata",
   "compatibility",
+  // Claude Code skill keys — valid in SKILL.md even though the claude.ai
+  // packager doesn't know them
+  "argument-hint",
+  "disable-model-invocation",
+  "user-invocable",
+  "model",
+  "context",
+  "agent",
 ]);
 
 const MAX_DESCRIPTION_LENGTH = 1024;
@@ -163,8 +172,10 @@ function checkDescription(ctx) {
   if (!trimmed) return [];
   const problems = [];
   if (/[<>]/.test(trimmed)) {
-    const message = "description cannot contain angle brackets (< or >)";
-    problems.push(error("description-angle-brackets", message));
+    // Fine in Claude Code, but the claude.ai skill packager rejects it.
+    const message =
+      "description contains angle brackets (< or >) — claude.ai packaging rejects them";
+    problems.push(warning("description-angle-brackets", message));
   }
   if (trimmed.length > MAX_DESCRIPTION_LENGTH) {
     const message = `description is too long (${trimmed.length} characters, max ${MAX_DESCRIPTION_LENGTH})`;

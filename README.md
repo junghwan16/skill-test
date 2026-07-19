@@ -4,9 +4,11 @@
 [![CI](https://github.com/junghwan16/skillevel/actions/workflows/ci.yml/badge.svg)](https://github.com/junghwan16/skillevel/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-A test runner for **Claude Code skills** — `vitest`, but a "test" is a prompt
-and the thing under test is whether a skill **triggers** (and behaves) the way
-its author intended.
+A test runner and authoring toolchain for **Claude Code skills** — `vitest`,
+but a "test" is a prompt and the thing under test is whether a skill
+**triggers** (and behaves) the way its author intended. It covers the whole
+loop: scaffold a skill (`new`), keep it valid and tidy (`lint`, `fmt`), then
+eval its triggering (`init`, run).
 
 ```bash
 $ skillevel sql
@@ -65,19 +67,35 @@ skillevel fmt --check        # normalize SKILL.md frontmatter (or report drift)
 ## Authoring
 
 Besides running evals, skillevel covers the write side of the loop — offline
-and deterministic, like `init`. `new` scaffolds a skill directory whose
-`SKILL.md` has the authoring guidance baked in as a comment; `lint` checks the
-result with skill-creator's validation rules (errors) plus guidance heuristics
-like TODOs, placeholders, and broken `references/` paths (warnings); `fmt` is a
-conservative formatter that normalizes frontmatter and whitespace but never
-rewrites prose.
+and deterministic, like `init`:
+
+- **`new`** scaffolds a skill directory whose `SKILL.md` carries the authoring
+  guidance as a comment (the description is the trigger mechanism; keep the
+  body under 500 lines; layer extras into `references/`). You write the
+  content — it never invents any.
+- **`lint`** reports **errors** for what would break the skill (the
+  `skill-creator` validation rules: frontmatter shape, kebab-case name,
+  description limits) and **warnings** for guidance drift (leftover TODOs and
+  placeholders, body over 500 lines, broken `references/` paths, name ≠
+  directory).
+- **`fmt`** normalizes frontmatter (`name`, `description` first — comments and
+  quoting preserved) and trailing whitespace, and touches nothing inside code
+  fences or prose.
 
 ```bash
-skillevel new sql            # sql/SKILL.md, ready to fill in
+$ skillevel new sql          # sql/SKILL.md, ready to fill in
 # ...write the skill...
-skillevel lint sql && skillevel fmt sql
-skillevel init sql && skillevel sql   # then eval its triggering
+$ skillevel lint
+
+sql/SKILL.md
+  error unexpected-key — unexpected frontmatter key(s): triggers (allowed: …)
+  warning broken-reference — referenced file does not exist: references/schema.md
+
+1 file · 1 errors · 1 warnings
 ```
+
+`lint` exits non-zero on errors (warnings alone pass) and `fmt --check` on
+unformatted files, so both slot straight into CI next to `skillevel --ci`.
 
 ## Cases
 

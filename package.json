@@ -1,7 +1,7 @@
 {
   "name": "skillevel",
-  "version": "0.1.0",
-  "description": "A test runner for Claude Code skills — vitest for skills. Write YAML cases, run them through `claude -p`, and check that each skill triggers (and behaves) the way it should.",
+  "version": "0.2.0",
+  "description": "A test runner and authoring toolchain for Claude Code skills — vitest for skills. Scaffold, lint, and format SKILL.md files, then run YAML cases through `claude -p` to check that each skill triggers (and behaves) the way it should.",
   "type": "module",
   "bin": {
     "skillevel": "src/cli.js"

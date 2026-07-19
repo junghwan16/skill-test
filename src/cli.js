@@ -29,7 +29,7 @@ function main() {
     .description(
       "A test runner for Claude Code skills. Runs YAML cases through `claude -p`.",
     )
-    .version("0.1.0");
+    .version("0.2.0");
 
   program
     .argument(
