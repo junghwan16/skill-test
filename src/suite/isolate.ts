@@ -79,7 +79,7 @@ export function collectSkillDirs(
  * dereferenced so the materialized copy is self-contained.
  */
 export function materializeProject(skills: Map<string, string>): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "skillevel-isolated-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "skilltree-isolated-"));
   for (const [name, dir] of skills) {
     fs.cpSync(dir, path.join(root, ".claude", "skills", name), {
       recursive: true,

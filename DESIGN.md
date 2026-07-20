@@ -1,4 +1,4 @@
-# skillevel — design
+# skilltree — design
 
 A test runner for **Claude Code skills**. Think `vitest`, but a "test" is a
 prompt and the thing under test is whether a skill fires (and behaves) the way
@@ -13,15 +13,15 @@ one, two things matter:
    near-misses it shouldn't (over/under-firing)?
 2. (later) **Task quality** — does the skill actually make the output better?
 
-`skillevel` v1 nails **#1** — cheap, fast, the highest-frequency need. v2
-ships **#2** as `skillevel bench`: the same cases, run with and without the
+`skilltree` v1 nails **#1** — cheap, fast, the highest-frequency need. v2
+ships **#2** as `skilltree bench`: the same cases, run with and without the
 skill, graded, reported as lift.
 
 ## Positioning
 
 - A **standalone `npx` CLI** — not a Claude Code skill, not tied to one repo.
 - It **adopts the community `evals/cases.yaml` schema** (from the `skill-eval`
-  skill) rather than inventing one. Cases stay portable; skillevel is just the
+  skill) rather than inventing one. Cases stay portable; skilltree is just the
   most ergonomic runner + scaffolder for them.
 - Mental model: **vitest for skills**. Auto-discovery, `trials` = built-in
   flake handling, `--ci` = regression gate.
@@ -29,15 +29,15 @@ skill, graded, reported as lift.
 ## Commands
 
 ```
-skillevel                    # discover & run every eval (**/*.eval.yaml, evals/cases.yaml)
-skillevel sql                # filter to a skill or a file
-skillevel -t "negative"      # filter by case id/substring
-skillevel --ci               # non-zero exit on any regression / unwritten case
-skillevel --json out.json    # machine-readable results alongside the grid
-skillevel bench sql          # A/B with vs without the skill; report the lift
-skillevel new sql            # scaffold what's missing: sql/SKILL.md and/or sql.eval.yaml
-skillevel lint [target...]   # validate SKILL.md files (errors) + guidance heuristics (warnings)
-skillevel fmt [--check]      # conservative SKILL.md frontmatter/whitespace normalizer
+skilltree                    # discover & run every eval (**/*.eval.yaml, evals/cases.yaml)
+skilltree sql                # filter to a skill or a file
+skilltree -t "negative"      # filter by case id/substring
+skilltree --ci               # non-zero exit on any regression / unwritten case
+skilltree --json out.json    # machine-readable results alongside the grid
+skilltree bench sql          # A/B with vs without the skill; report the lift
+skilltree new sql            # scaffold what's missing: sql/SKILL.md and/or sql.eval.yaml
+skilltree lint [target...]   # validate SKILL.md files (errors) + guidance heuristics (warnings)
+skilltree fmt [--check]      # conservative SKILL.md frontmatter/whitespace normalizer
 ```
 
 Deliberately **not** in the surface (cut for real-repo ergonomics): `--watch`
@@ -80,7 +80,7 @@ cases:
 
 ## `new` — one on-ramp; scaffold, don't generate
 
-There is a single scaffolding command. `skillevel new <skill>` creates
+There is a single scaffolding command. `skilltree new <skill>` creates
 whatever the skill is missing and skips what already exists:
 
 - **`<skill>/SKILL.md`** — only when no skill by that name exists (locally or
@@ -164,7 +164,7 @@ below.
 v1 answers _does it trigger_. v2 answers _does it improve the output_ — the
 question that decides whether a skill is worth its tokens, and whether an edit
 made it better. This is the ablation `skill-eval` describes and the A/B loop the
-official `skill-creator` runs, packaged as one command: `skillevel bench`.
+official `skill-creator` runs, packaged as one command: `skilltree bench`.
 
 ## The idea
 
@@ -172,7 +172,7 @@ For each case, run the **same prompt twice** — once with the skill available,
 once without — grade both outputs, and report the **lift**:
 
 ```
-$ skillevel bench sql
+$ skilltree bench sql
 
 sql  ./sql.eval.yaml
   case                    with   without    lift
@@ -221,7 +221,7 @@ the full output.
 ## CLI surface
 
 ```
-skillevel bench [target]           # with vs without, report lift
+skilltree bench [target]           # with vs without, report lift
   --trials <n>                     # per arm; defaults to 3 (each case = 2× runs + grading)
   --min-lift <pp>                  # CI gate: exit non-zero when lift drops below this
   --json <file>                    # full A/B results for machines
@@ -278,7 +278,7 @@ the fixes end-to-end and catching one deeper bug the first pass had masked.
    reports `N suite(s) discovered, but no case id matches filter "X"` instead of
    the misleading "no eval suites found" (`suite/load.ts` `filteredOut`, `commands/helpers.ts`).
 
-6. **Offline `validate`.** `skillevel validate [target]` parses suites with no
+6. **Offline `validate`.** `skilltree validate [target]` parses suites with no
    `claude` calls, reports schema errors, and previews the run count
    (`≈ N claude runs` for eval, `≈ M` for bench) — the pre-flight before paying
    (`commands/validate.ts`).
@@ -298,7 +298,7 @@ the fixes end-to-end and catching one deeper bug the first pass had masked.
    missed it because only one case was benchable, so the ignored `-t` _looked_
    like it worked; adding a root `--trials` in pass 1 then broke `bench`'s
    `--trials` outright. Fix: `run` is now an explicit `{ isDefault: true }`
-   subcommand, so `skillevel [target]` and bare `skillevel` still work while
+   subcommand, so `skilltree [target]` and bare `skilltree` still work while
    subcommand options parse correctly. Verified end-to-end:
    `bench commit-style -t happy-bugfix --trials 1` runs one trial per arm
    (and showed a real **+100pp** lift). This also un-broke `-t/-c/-m/--json` on
@@ -332,7 +332,7 @@ Also closed: the invisible `expect_skill` "sibling must actually fire" semantic
 - **Overlapping installed siblings out-compete the example.** Pass 2 ran on a
   machine that also has a real `code-review` skill whose description nearly
   matches `review-pr`'s ("review a branch, a PR, since X"); it won some routing.
-  That is not a CLI defect — it's exactly the over-triggering collision skillevel
+  That is not a CLI defect — it's exactly the over-triggering collision skilltree
   exists to _detect_ — but it means `review-pr`'s suite only goes fully green in
   an environment without a rival diff-reviewer. The real fix belongs to the
   skills (sharper boundaries), which is a lesson worth leaving in the example.
@@ -428,7 +428,7 @@ always re-bench (no skip-if-unchanged heuristic).
 
 ## Code layout (TypeScript)
 
-The source is TypeScript (`tsc` → `dist/`, published as the `skillevel` bin),
+The source is TypeScript (`tsc` → `dist/`, published as the `skilltree` bin),
 layered so each dependency points inward and every use case is testable
 offline:
 

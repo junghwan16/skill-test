@@ -14,7 +14,7 @@
 # The routing case is the mirror of review-pr's: "review my branch" must route
 # to examples/review-pr, and sql must stay out — the two example skills pin
 # each other's boundary. review-pr only fires where there's a diff, so that one
-# case pins its own `cwd: ../..` (the skillevel repo root, a real git repo).
+# case pins its own `cwd: ../..` (the skilltree repo root, a real git repo).
 
 skill: sql
 trials: 3

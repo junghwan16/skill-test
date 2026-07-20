@@ -37,7 +37,7 @@ function main(): void {
   const ctx = productionContext();
   const program = new Command();
   program
-    .name("skillevel")
+    .name("skilltree")
     .description(
       "A test runner for Claude Code skills. Runs YAML cases through `claude -p`.",
     )

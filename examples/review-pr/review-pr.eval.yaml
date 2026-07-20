@@ -5,7 +5,7 @@
 #     SKILL.md
 #     review-pr.eval.yaml   ← you are here
 #
-# `cwd: ../..` points every run at the skillevel repo root — a real git repo
+# `cwd: ../..` points every run at the skilltree repo root — a real git repo
 # with a diff — because review-pr only fires when there's something to review.
 # (Demonstrates the per-suite `cwd` knob; resolved relative to this file.)
 #
@@ -25,7 +25,7 @@ cases:
     expect:
       - triggered
       - match: "correctness|style|tests" # the three report axes
-      # Also what `skillevel bench review-pr` A/Bs (skill-on vs skill-off):
+      # Also what `skilltree bench review-pr` A/Bs (skill-on vs skill-off):
       - judge: >
           Does the response review the diff since a fixed reference point and
           group its findings under Correctness / Style / Tests with a

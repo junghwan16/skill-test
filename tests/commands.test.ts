@@ -18,7 +18,7 @@ let previousCwd: string;
 
 beforeEach(() => {
   previousCwd = process.cwd();
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), "skillevel-cmd-"));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "skilltree-cmd-"));
   process.chdir(dir);
 });
 

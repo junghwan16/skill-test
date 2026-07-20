@@ -61,7 +61,7 @@ export function snapshotSkillDir(
     throw new Error(`skill '${skillName}' did not exist at '${ref}'`);
   }
 
-  const out = fs.mkdtempSync(path.join(os.tmpdir(), "skillevel-snapshot-"));
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "skilltree-snapshot-"));
   try {
     for (const file of files) {
       const target = path.join(out, file.slice(strip.length));

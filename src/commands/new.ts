@@ -37,7 +37,7 @@ export function newCommand(
 
     io.out(
       pc.dim(
-        `write the content, then: skillevel ${skill}  ·  skillevel bench ${skill}`,
+        `write the content, then: skilltree ${skill}  ·  skilltree bench ${skill}`,
       ),
     );
     return 0;

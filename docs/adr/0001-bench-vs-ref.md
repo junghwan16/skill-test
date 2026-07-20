@@ -5,7 +5,7 @@ The "Decision" below landed as written, on top of v2.1's isolation primitive.
 
 ## Context
 
-`skillevel bench` answers "does this skill help vs. no skill at all" — the
+`skilltree bench` answers "does this skill help vs. no skill at all" — the
 `with` arm runs with the skill available, the `without` arm blocks all skills
 (`--disallowedTools Skill`), and the report is a lift in percentage points.
 
@@ -36,7 +36,7 @@ Add a `--vs <ref>` flag to `bench` that reports the delta between two versions
 of the same skill's `SKILL.md`, run in the same batch, against the same cases:
 
 ```
-$ skillevel bench code-review --vs main
+$ skilltree bench code-review --vs main
 
 code-review  ./code-review.eval.yaml   (new: working copy, old: main)
   case                    old        new      delta
@@ -56,7 +56,7 @@ code-review  ./code-review.eval.yaml   (new: working copy, old: main)
 ### CLI surface
 
 ```
-skillevel bench [target] --vs <ref>
+skilltree bench [target] --vs <ref>
 ```
 
 - `<ref>` is anything `git show <ref>:<path>` accepts — branch, tag, commit
@@ -106,7 +106,7 @@ message rather than comparing against nothing.
   additional flag, not a new command.
 - **Not multi-file history.** `--vs` compares the skill's own `SKILL.md` (and
   its `references/`) between two refs — not the whole repo.
-- **Not a general git-diff tool.** No prose-diff rendering; `skillevel` reports
+- **Not a general git-diff tool.** No prose-diff rendering; `skilltree` reports
   behavioral delta only.
 
 ### Report format
@@ -135,6 +135,6 @@ level (exact naming was an implementation decision).
 `--vs` supplies the "green" check for a TDD-style loop: capture a failing
 prompt as a case (red, proven), edit `SKILL.md`, then `bench --vs HEAD` (green,
 nothing else broke). Capturing a well-formed, confirmed-red case is a separate
-gap — a future `skillevel capture <skill> "<prompt>"` — left as its own piece
+gap — a future `skilltree capture <skill> "<prompt>"` — left as its own piece
 of surface because the two are independently useful and bundling them would
 make `--vs` depend on case-file semantics it doesn't otherwise need.

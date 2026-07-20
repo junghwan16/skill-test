@@ -48,9 +48,7 @@ describe("createJudge", () => {
   });
 
   it("falls back to an unambiguous mention when no line leads with the verdict", async () => {
-    const runner = new FakeRunner(() =>
-      outcome({ text: "Verdict: PASS" }),
-    );
+    const runner = new FakeRunner(() => outcome({ text: "Verdict: PASS" }));
     const verdict = await createJudge(runner)("q", "a");
     expect(verdict.ok).toBe(true);
   });
