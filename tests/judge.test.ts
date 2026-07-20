@@ -25,6 +25,44 @@ describe("createJudge", () => {
     expect(verdict.ok).toBe(false);
   });
 
+  it("reads a PASS that follows a reasoning preamble line", async () => {
+    // Reasoning models sometimes narrate before the verdict, despite the
+    // instruction to lead with it — a real regression this guards against.
+    const runner = new FakeRunner(() =>
+      outcome({
+        text: "Let me evaluate each condition.\nPASS — all three conditions are met.",
+      }),
+    );
+    const verdict = await createJudge(runner)("q", "a");
+    expect(verdict.ok).toBe(true);
+    expect(verdict.reason).toContain("all three conditions are met");
+  });
+
+  it("reads a markdown-wrapped verdict", async () => {
+    const runner = new FakeRunner(() =>
+      outcome({ text: "**FAIL** — missing the dt partition filter" }),
+    );
+    const verdict = await createJudge(runner)("q", "a");
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain("dt partition");
+  });
+
+  it("falls back to an unambiguous mention when no line leads with the verdict", async () => {
+    const runner = new FakeRunner(() =>
+      outcome({ text: "Verdict: PASS" }),
+    );
+    const verdict = await createJudge(runner)("q", "a");
+    expect(verdict.ok).toBe(true);
+  });
+
+  it("fails closed when both PASS and FAIL appear without a leading verdict", async () => {
+    const runner = new FakeRunner(() =>
+      outcome({ text: "It would not pass; the answer is a fail overall." }),
+    );
+    const verdict = await createJudge(runner)("q", "a");
+    expect(verdict.ok).toBe(false);
+  });
+
   it("embeds the rubric and the answer in a single-turn prompt", async () => {
     const runner = new FakeRunner(() => outcome({ text: "PASS" }));
     await createJudge(runner, "opus")("is it polite?", "hello there");
