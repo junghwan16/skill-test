@@ -93,7 +93,7 @@ export function testContext(
 
 /** A fresh temp directory, removed after `fn` finishes. */
 export function withTempDir<T>(fn: (dir: string) => T): T {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-test-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gisul-test-"));
   try {
     return fn(dir);
   } finally {

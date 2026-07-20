@@ -37,7 +37,7 @@ export function newCommand(
 
     io.out(
       pc.dim(
-        `write the content, then: skill-test ${skill}  ·  skill-test bench ${skill}`,
+        `write the content, then: gisul ${skill}  ·  gisul bench ${skill}`,
       ),
     );
     return 0;
