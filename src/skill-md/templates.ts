@@ -31,9 +31,9 @@ Authoring guide (delete this comment when done):
 - Write instructions in imperative form. Explain WHY things matter instead of
   heavy-handed MUSTs — the model reasons better from rationale than rules.
 - After writing, fill in the cases in ${skill}.eval.yaml and test triggering:
-    skill-test ${skill}
+    gisul ${skill}
   then measure whether the skill actually improves the output:
-    skill-test bench ${skill}
+    gisul bench ${skill}
 -->
 
 # ${skill}
@@ -57,7 +57,7 @@ export function renderSuiteTemplate(
   skill: string,
   meta: SkillMeta | null,
 ): string {
-  return `# ${skill}.eval.yaml — skill-test test cases
+  return `# ${skill}.eval.yaml — gisul test cases
 # new scaffolded this. Delete the examples and write your own cases.
 #
 # Principles (authoring guide):
@@ -66,7 +66,7 @@ export function renderSuiteTemplate(
 #     unrelated prompts are weak
 #   - Real usage / production traces make the best cases — paste them in
 #   - Judge the result, not the path — not "loaded on turn 1", but "did the task"
-#   - Happy cases with match/absent/judge also power \`skill-test bench ${skill}\`
+#   - Happy cases with match/absent/judge also power \`gisul bench ${skill}\`
 #     (skill-on vs skill-off lift — does the skill actually help?)
 ${triggerHint(skill, meta)}
 skill: ${skill}

@@ -1,7 +1,7 @@
-# skill-test
+# gisul
 
-[![npm](https://img.shields.io/npm/v/skill-test.svg)](https://www.npmjs.com/package/skill-test)
-[![CI](https://github.com/junghwan16/skill-test/actions/workflows/ci.yml/badge.svg)](https://github.com/junghwan16/skill-test/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/gisul.svg)](https://www.npmjs.com/package/gisul)
+[![CI](https://github.com/junghwan16/gisul/actions/workflows/ci.yml/badge.svg)](https://github.com/junghwan16/gisul/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 **A test runner for Claude Code skills.** Think `vitest`, but a "test" is a
@@ -13,11 +13,11 @@ prompt, and the thing under test is your skill's behaviour:
 - **Does it help?** — the same prompt answered better _with_ the skill than
   without. If not, the skill isn't earning its tokens.
 
-You describe both in a small YAML file; `skill-test` runs each case repeatedly
+You describe both in a small YAML file; `gisul` runs each case repeatedly
 through `claude -p`, scores the pass-rate, and prints a familiar test report:
 
 ```bash
-$ skill-test sql
+$ gisul sql
 
 sql  ./sql.eval.yaml
   ✓ aggregate-revenue      5/5
@@ -36,7 +36,7 @@ It also covers the write side of the loop: `new` scaffolds a `SKILL.md`,
 
 Requires [Claude Code](https://claude.com/claude-code) on your `PATH` (the
 `claude` CLI, logged in) and Node ≥ 18. No install needed — `npx` works, or
-`npm i -g skill-test` for a global command.
+`npm i -g gisul` for a global command.
 
 Say your team keeps a `sql` skill that writes queries against your warehouse
 schema — the tables, the money units, the partition rules base Claude can't guess.
@@ -44,7 +44,7 @@ schema — the tables, the money units, the partition rules base Claude can't gu
 **1. Scaffold with one command:**
 
 ```bash
-npx skill-test@latest new sql
+npx gisul@latest new sql
 ```
 
 `new` creates whatever the skill is missing and skips what's already there:
@@ -78,7 +78,7 @@ cases:
 **3. Run it:**
 
 ```bash
-npx skill-test sql
+npx gisul sql
 ```
 
 Red cases tell you exactly how the skill misfired (`fired: <skill>`); edit
@@ -86,19 +86,19 @@ the skill's `description`, run again, repeat until green. When it triggers
 right, measure whether it actually improves answers:
 
 ```bash
-npx skill-test bench sql
+npx gisul bench sql
 ```
 
 ## Commands
 
-| command                        | what it does                                                           |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| `skill-test [target]`          | run eval suites — all discovered, or one skill / file                  |
-| `skill-test bench [target]`    | A/B each case with vs without the skill; report the lift               |
-| `skill-test validate [target]` | offline: parse suites, report schema errors, preview run cost          |
-| `skill-test new <skill>`       | scaffold what's missing: `<skill>/SKILL.md` and/or `<skill>.eval.yaml` |
-| `skill-test lint [targets…]`   | validate `SKILL.md` files (packaging errors + guidance warnings)       |
-| `skill-test fmt [targets…]`    | normalize `SKILL.md` frontmatter/whitespace (`--check` to only report) |
+| command                   | what it does                                                           |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `gisul [target]`          | run eval suites — all discovered, or one skill / file                  |
+| `gisul bench [target]`    | A/B each case with vs without the skill; report the lift               |
+| `gisul validate [target]` | offline: parse suites, report schema errors, preview run cost          |
+| `gisul new <skill>`       | scaffold what's missing: `<skill>/SKILL.md` and/or `<skill>.eval.yaml` |
+| `gisul lint [targets…]`   | validate `SKILL.md` files (packaging errors + guidance warnings)       |
+| `gisul fmt [targets…]`    | normalize `SKILL.md` frontmatter/whitespace (`--check` to only report) |
 
 Useful flags on runs: `-t <substr>` filters cases by id, `-m <model>`
 overrides the model, `--trials <n>` overrides the suite's trial count (to bound
@@ -106,7 +106,7 @@ cost mid-iteration), `-c <n>` sets parallelism, `--json <file>` writes full
 machine-readable results, `--ci` makes failures and unwritten cases exit
 non-zero, and `bench --min-lift <pp>` fails when the lift drops too low.
 
-Before spending on a real run, `skill-test validate [target]` parses the suites
+Before spending on a real run, `gisul validate [target]` parses the suites
 offline, flags schema errors, and previews the run count (`≈ N claude runs`).
 
 Suites are discovered automatically: any `*.eval.yaml` (or `evals/cases.yaml`)
@@ -115,7 +115,7 @@ under the current directory.
 See [`examples/`](./examples/) for two self-contained skill packages —
 `review-pr` and `sql`, each shipping its `SKILL.md` next to its eval
 suite — that pin each other's routing boundary and were built by dogfooding
-skill-test's own toolchain.
+gisul's own toolchain.
 
 ## Writing cases
 
@@ -174,7 +174,7 @@ twice — once with the skill available, once with skills blocked
 `match` / `absent` / `judge` expectations, and reports the lift:
 
 ```bash
-$ skill-test bench sql
+$ gisul bench sql
 
 sql  ./sql.eval.yaml
   case                    with   without    lift
@@ -216,7 +216,7 @@ skill (or `--skill-dir` working copy) against its own version at any git ref
 identical in both arms:
 
 ```bash
-$ skill-test bench sql --vs HEAD
+$ gisul bench sql --vs HEAD
 
 old vs new — new: working copy; old: snapshot at HEAD
 sql  ./sql.eval.yaml   (new: working copy, old: HEAD)
@@ -239,8 +239,8 @@ skill, not your working copy. `--skill-dir <path>` (a skill directory or its
 runs everything there, no install or symlink needed:
 
 ```bash
-skill-test run sql --skill-dir ./skills/sql     # trigger-eval the edit
-skill-test bench sql --skill-dir ./skills/sql   # A/B the edit (implies --isolate)
+gisul run sql --skill-dir ./skills/sql     # trigger-eval the edit
+gisul bench sql --skill-dir ./skills/sql   # A/B the edit (implies --isolate)
 ```
 
 The working copy replaces any installed skill of the same frontmatter
@@ -265,7 +265,7 @@ working directory to the temp project, so they refuse suites that declare a
   code fences. When it can't parse a file it leaves it alone.
 
 ```bash
-$ skill-test lint
+$ gisul lint
 
 sql/SKILL.md
   error unexpected-key — unexpected frontmatter key(s): triggers (allowed: …)
@@ -287,19 +287,19 @@ and an API key. A typical GitHub Actions split:
   with: { node-version: 22 }
 
 # offline — every push
-- run: npx skill-test@latest lint && npx skill-test@latest fmt --check
+- run: npx gisul@latest lint && npx gisul@latest fmt --check
 
 # paid — e.g. only when skills/ or *.eval.yaml changed
 - run: npm install -g @anthropic-ai/claude-code
-- run: npx skill-test@latest --ci
+- run: npx gisul@latest --ci
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-- run: npx skill-test@latest bench --min-lift 10
+- run: npx gisul@latest bench --min-lift 10
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 # on skill-touching PRs — fail the build if the edit regressed quality
-- run: npx skill-test@latest bench --vs origin/main --min-improvement 0
+- run: npx gisul@latest bench --vs origin/main --min-improvement 0
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
