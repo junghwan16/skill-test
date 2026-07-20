@@ -53,14 +53,27 @@ export function renderGrid(suites: SuiteResult[]): string {
   return lines.join("\n");
 }
 
+/**
+ * Old-vs-new mode (`bench --vs <ref>`): relabels the table and summary — the
+ * "with" arm is the new version, the "without" arm the old one at `ref`.
+ */
+export interface VsMode {
+  ref: string;
+  /** Where the new arm came from, e.g. "working copy". */
+  newSource: string;
+}
+
 /** Render the A/B lift table for a bench run, one block per suite. */
-export function renderBench(suites: BenchSuiteResult[]): string {
+export function renderBench(suites: BenchSuiteResult[], vs?: VsMode): string {
   const lines: string[] = [];
   for (const suite of suites) {
-    lines.push("", pc.bold(suite.skill) + pc.dim(`  ${suite.file}`));
+    const note = vs ? `   (new: ${vs.newSource}, old: ${vs.ref})` : "";
+    lines.push("", pc.bold(suite.skill) + pc.dim(`  ${suite.file}${note}`));
     lines.push(
       pc.dim(
-        `  ${"case".padEnd(22)}${"with".padStart(6)}${"without".padStart(10)}${"lift".padStart(8)}`,
+        vs
+          ? `  ${"case".padEnd(22)}${"old".padStart(6)}${"new".padStart(10)}${"delta".padStart(8)}`
+          : `  ${"case".padEnd(22)}${"with".padStart(6)}${"without".padStart(10)}${"lift".padStart(8)}`,
       ),
     );
     for (const c of suite.cases) {
@@ -78,10 +91,15 @@ export function renderBench(suites: BenchSuiteResult[]): string {
         );
         continue;
       }
+      // In vs mode the old arm (withoutPassed) reads first, matching the
+      // before → after direction of the summary rates.
+      const [first, second] = vs
+        ? [c.withoutPassed, c.withPassed]
+        : [c.withPassed, c.withoutPassed];
       lines.push(
         id +
-          `${c.withPassed}/${c.trials}`.padStart(6) +
-          `${c.withoutPassed}/${c.trials}`.padStart(10) +
+          `${first}/${c.trials}`.padStart(6) +
+          `${second}/${c.trials}`.padStart(10) +
           paintLift(liftPp(c), 8),
       );
     }
@@ -90,11 +108,12 @@ export function renderBench(suites: BenchSuiteResult[]): string {
 }
 
 /** Render the closing bench summary: overall lift, rates, and cost. */
-export function renderBenchSummary(summary: BenchSummary): string {
+export function renderBenchSummary(summary: BenchSummary, vs?: VsMode): string {
   if (summary.benched === 0) {
-    return `\n${pc.yellow("nothing to bench")} ${pc.dim(
-      "— bench needs happy cases (should_trigger: true) with match/absent/judge expectations",
-    )}`;
+    const hint = vs
+      ? "— --vs compares outputs, so it needs happy cases (should_trigger: true) with match/absent/judge expectations"
+      : "— bench needs happy cases (should_trigger: true) with match/absent/judge expectations";
+    return `\n${pc.yellow(vs ? "nothing to compare" : "nothing to bench")} ${pc.dim(hint)}`;
   }
   const arrow =
     summary.liftPp > 0
@@ -104,13 +123,13 @@ export function renderBenchSummary(summary: BenchSummary): string {
         : pc.dim("▬");
   const rates = `(${pct(summary.withoutRate)} → ${pct(summary.withRate)})`;
   const counts = [
-    `${summary.benched} benched`,
+    `${summary.benched} ${vs ? "compared" : "benched"}`,
     summary.skipped ? `${summary.skipped} skipped` : null,
     summary.todo ? `${summary.todo} todo` : null,
   ]
     .filter(Boolean)
     .join(" · ");
-  return `\n${arrow} skill lift: ${paintLift(summary.liftPp)}   ${pc.dim(
+  return `\n${arrow} ${vs ? "improvement" : "skill lift"}: ${paintLift(summary.liftPp)}   ${pc.dim(
     `${rates}   ${counts}   $${summary.costUsd.toFixed(3)}`,
   )}`;
 }

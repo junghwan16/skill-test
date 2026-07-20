@@ -3,6 +3,7 @@
  * runner, in-memory io — exactly what a user sees, minus the `claude` spend.
  */
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -205,6 +206,82 @@ describe("benchCommand", () => {
     const ctx = testContext(constantRunner(outcome()));
     expect(await benchCommand(undefined, { isolate: true }, ctx)).toBe(1);
     expect(ctx.io.stderr).toContain("nothing to ablate");
+  });
+
+  function gitHere(...args: string[]): void {
+    execFileSync(
+      "git",
+      ["-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", ...args],
+      { stdio: "pipe" },
+    );
+  }
+
+  /** A committed old version of `sql/SKILL.md`, then a working-copy edit. */
+  function writeEditedSkillRepo(): void {
+    writeSuite("sql.eval.yaml", BENCH_SUITE);
+    fs.mkdirSync(path.join(dir, "sql"));
+    fs.writeFileSync(path.join(dir, "sql", "SKILL.md"), "old instructions");
+    gitHere("init", "-q");
+    gitHere("add", "-A");
+    gitHere("commit", "-q", "-m", "old");
+    fs.writeFileSync(path.join(dir, "sql", "SKILL.md"), "new instructions");
+  }
+
+  /** Passes only in arms whose materialized target SKILL.md matches `winner`. */
+  function versionSensitiveRunner(winner: string): FakeRunner {
+    return new FakeRunner((_prompt, options) => {
+      expect(options.disallowSkills).toBeUndefined();
+      expect(options.isolate).toBe(true);
+      const skillMd = path.join(
+        options.cwd!,
+        ".claude",
+        "skills",
+        "sql",
+        "SKILL.md",
+      );
+      const body = fs.existsSync(skillMd)
+        ? fs.readFileSync(skillMd, "utf8")
+        : "";
+      return outcome({ text: body.includes(winner) ? "SELECT 1" : "dunno" });
+    });
+  }
+
+  it("--vs benches the working copy against the snapshot at a ref", async () => {
+    writeEditedSkillRepo();
+    const runner = versionSensitiveRunner("new");
+    const ctx = testContext(runner);
+    expect(await benchCommand(undefined, { vs: "HEAD", trials: 2 }, ctx)).toBe(
+      0,
+    );
+    expect(ctx.io.stdout).toContain("old vs new");
+    expect(ctx.io.stdout).toContain("old: HEAD");
+    expect(ctx.io.stdout).toContain("improvement");
+    expect(ctx.io.stdout).toContain("+100pp");
+    const cwds = new Set(runner.calls.map((c) => c.options.cwd!));
+    expect(cwds.size).toBe(2); // one project per version
+    for (const cwd of cwds) expect(fs.existsSync(cwd)).toBe(false);
+  });
+
+  it("--min-improvement fails the run when the edit regressed", async () => {
+    writeEditedSkillRepo();
+    const ctx = testContext(versionSensitiveRunner("old"));
+    expect(
+      await benchCommand(
+        undefined,
+        { vs: "HEAD", trials: 1, minImprovement: 0 },
+        ctx,
+      ),
+    ).toBe(1);
+    expect(ctx.io.stdout).toContain("-100pp");
+  });
+
+  it("--vs outside a git repo fails cleanly", async () => {
+    writeSuite("sql.eval.yaml", BENCH_SUITE);
+    fs.mkdirSync(path.join(dir, "sql"));
+    fs.writeFileSync(path.join(dir, "sql", "SKILL.md"), "x");
+    const ctx = testContext(constantRunner(outcome()));
+    expect(await benchCommand(undefined, { vs: "HEAD" }, ctx)).toBe(1);
+    expect(ctx.io.stderr).toContain("not inside a git working tree");
   });
 });
 

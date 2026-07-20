@@ -206,6 +206,30 @@ ablation instead: both arms run in throwaway temp projects
 every discoverable skill and the "without" arm every skill _except_ the
 target — siblings stay free to fire in both.
 
+### Did my edit improve it? (`--vs <ref>`)
+
+Mid-edit, the question isn't "is this skill worth having" but "is the new
+version better than the one it replaces". `--vs <ref>` benches the current
+skill (or `--skill-dir` working copy) against its own version at any git ref
+— branch, tag, SHA, `HEAD~1` — in the same interleaved batch, siblings
+identical in both arms:
+
+```bash
+$ skillevel bench sql --vs HEAD
+
+old vs new — new: working copy; old: snapshot at HEAD
+sql  ./sql.eval.yaml   (new: working copy, old: HEAD)
+  case                     old       new   delta
+  aggregate-revenue        1/3       3/3   +67pp
+
+▲ improvement: +67pp   (33% → 100%)   1 compared   $0.90
+```
+
+The old side is read from git history (`git show <ref>:…`, including
+`references/`), so it doesn't need to be installed — or even still exist in
+the working tree. `--min-improvement <pp>` gates CI the way `--min-lift`
+does: a skill edit that quietly regresses a benched case fails the build.
+
 ## Evaling an uncommitted skill (`--skill-dir`)
 
 By default, runs test whatever `claude -p` already discovers — the installed
@@ -270,6 +294,11 @@ and an API key. A typical GitHub Actions split:
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 - run: npx skillevel@latest bench --min-lift 10
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+# on skill-touching PRs — fail the build if the edit regressed quality
+- run: npx skillevel@latest bench --vs origin/main --min-improvement 0
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```

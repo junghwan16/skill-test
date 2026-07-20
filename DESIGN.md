@@ -233,10 +233,8 @@ quality fails the build.
 
 ## Roadmap / open questions
 
-- **Old-vs-new comparison** (`--vs <ref>`) — point the baseline arm at a
-  snapshotted SKILL.md instead of "no skill". PRD:
-  [docs/prd-bench-vs.md](./docs/prd-bench-vs.md); builds on v2.1's isolation
-  primitive (materialize the old ref into a temp project).
+- **Old-vs-new comparison** (`--vs <ref>`) — shipped in v2.2, see below. PRD:
+  [docs/prd-bench-vs.md](./docs/prd-bench-vs.md).
 - Judge variance — grade N times and vote, or trust one call with evidence?
 - Comparator vs per-output grader — a blind A/B "which is better" can be more
   discriminating than independent PASS/FAIL, but is harder to threshold in CI.
@@ -390,6 +388,41 @@ Details that mattered:
 Open: composing `--skill-dir` with `cwd:` fixtures (a repo-context skill
 edit currently still needs the manual symlink), and ablating plugin-provided
 skills (they can't be materialized as project skills).
+
+---
+
+# v2.2 — `bench --vs <ref>`: did this edit improve the skill? — SHIPPED
+
+The PRD ([docs/prd-bench-vs.md](./docs/prd-bench-vs.md)) sequenced this on
+purpose: land the isolation primitive first, then build the old side on top
+of it. That's exactly how it shipped — the bench runner needed **zero
+changes**: `--vs` is just a different way of building the two `ArmProjects`.
+
+- `suite/snapshot.ts` materializes the version of a skill dir at any git ref
+  into a temp dir (`git ls-tree -r` + `git show <ref>:<path>`, every file
+  under the dir — SKILL.md, `references/`, scripts). A file added since the
+  ref is simply absent, which is correct: that's part of what changed. The
+  old version doesn't need to be installed — or to still exist on disk.
+- The "new" arm's project holds every discoverable skill with the current
+  (or `--skill-dir`) target; the "old" arm's is identical except the target
+  is replaced by its snapshot. Siblings are the same in both arms, both arms
+  run isolated (`--setting-sources project`) and interleaved in one batch,
+  and the Skill tool stays available — only the skill's own text varies.
+- Report relabels to `old / new / delta` with the ref in the suite header;
+  the summary reads `▲/▼ improvement: ±NNpp (old% → new%) … K compared`. A
+  regression paints red, per the PRD.
+- `--min-improvement <pp>` gates CI like `--min-lift` does (the PRD's
+  "vs. previous version" gate); `--json` results carry
+  `mode: "vs-ref" | "ablate" | "vs-baseline"` (+ `ref`) so machine consumers
+  can't misread which baseline produced the numbers.
+- Clear failures per the PRD: outside a git working tree, an unknown ref
+  (git's own reason quoted), and a skill that didn't exist at the ref
+  (`skill 'x' did not exist at '<ref>'`).
+
+PRD open questions resolved pragmatically: no ref default (explicit `--vs
+HEAD` for "vs last commit" — matches `git diff HEAD` framing without
+guessing), trials keep bench's default of 3 per arm, references-only edits
+always re-bench (no skip-if-unchanged heuristic).
 
 ## Code layout (TypeScript)
 

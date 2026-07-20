@@ -113,6 +113,14 @@ function main(): void {
       "--skill-dir <path>",
       "bench the working-copy skill at <path> instead of the installed one (implies --isolate)",
     )
+    .option(
+      "--vs <ref>",
+      "old vs new: bench the current skill against its version at a git ref (branch, tag, SHA, HEAD~1) — did the edit improve it?",
+    )
+    .option(
+      "--min-improvement <pp>",
+      "with --vs: exit non-zero when the delta is below this many percentage points",
+    )
     .action(async (target: string | undefined, options: RawOptions) => {
       process.exitCode = await benchCommand(
         target,
@@ -125,6 +133,8 @@ function main(): void {
           minLift: asNumber(options.minLift),
           isolate: Boolean(options.isolate),
           skillDir: asString(options.skillDir),
+          vs: asString(options.vs),
+          minImprovement: asNumber(options.minImprovement),
         },
         ctx,
       );

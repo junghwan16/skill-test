@@ -1,7 +1,8 @@
 # PRD — `skillevel bench --vs <ref>`: did this edit actually improve the skill?
 
-Status: draft. Roadmap item referenced in [`DESIGN.md`](../DESIGN.md#roadmap--open-questions)
-("Old-vs-new comparison (`--vs <ref>`)").
+Status: **shipped** (v2.2 — see [`DESIGN.md`](../DESIGN.md)). Kept as the
+design record; the "How it works" section landed as written, on top of
+v2.1's isolation primitive.
 
 ## Problem
 
