@@ -233,8 +233,8 @@ quality fails the build.
 
 ## Roadmap / open questions
 
-- **Old-vs-new comparison** (`--vs <ref>`) — shipped in v2.2, see below. PRD:
-  [docs/prd-bench-vs.md](./docs/prd-bench-vs.md).
+- **Old-vs-new comparison** (`--vs <ref>`) — shipped in v2.2, see below. ADR:
+  [docs/adr/0001-bench-vs-ref.md](./docs/adr/0001-bench-vs-ref.md).
 - Judge variance — grade N times and vote, or trust one call with evidence?
 - Comparator vs per-output grader — a blind A/B "which is better" can be more
   discriminating than independent PASS/FAIL, but is harder to threshold in CI.
@@ -393,8 +393,8 @@ skills (they can't be materialized as project skills).
 
 # v2.2 — `bench --vs <ref>`: did this edit improve the skill? — SHIPPED
 
-The PRD ([docs/prd-bench-vs.md](./docs/prd-bench-vs.md)) sequenced this on
-purpose: land the isolation primitive first, then build the old side on top
+ADR-0001 ([docs/adr/0001-bench-vs-ref.md](./docs/adr/0001-bench-vs-ref.md))
+sequenced this on purpose: land the isolation primitive first, then build the old side on top
 of it. That's exactly how it shipped — the bench runner needed **zero
 changes**: `--vs` is just a different way of building the two `ArmProjects`.
 
